@@ -59,6 +59,26 @@ Be clear about the cost before you install:
 - A turn that ends with open tasks starts one more short turn: the reminder.
 - The agent makes extra tool calls to close or drop tasks.
 
+## Exactly what the mod sends, and which calls it answers
+
+The directory asks every mod to state this. Here is all of it.
+
+**The note on your message (`prompt.submit` hook).** When you send a message, the hook logs it as a task and attaches one hidden note for the agent. It does not change your text. The note is:
+
+> [drive-by] This message is logged as D-*n*. Before you end the turn: do it and call mcp__drive-by__close with proof, or call mcp__drive-by__drop with a reason (a plain question you answered is "answered in chat"). If it holds several asks, split them with mcp__drive-by__add and drop D-*n* as "split".
+
+It skips slash commands, prompts from plugins and the system, and (by default) short replies such as "ok".
+
+**The prompt it submits (turn-end reminder).** When a turn ends with open tasks, the mod submits one prompt to the same session. It holds the open tasks' ids and the text of your messages they came from (each cut to 300 characters), then this instruction:
+
+> For each one: do it and call mcp__drive-by__close with proof, call mcp__drive-by__drop with a reason, or say in one line why it must wait. Do not end the turn with an item you did not address.
+
+It goes only to the session it runs in. It is never sent anywhere else. Turn it off with `remindAtTurnEnd: false`.
+
+**The tool calls it answers.** The mod answers only its own four tools: `mcp__drive-by__list`, `mcp__drive-by__add`, `mcp__drive-by__close` and `mcp__drive-by__drop`. It does not stand in for, block or change any other tool.
+
+**The command it adds.** `/drive-by` opens the pane and prints the open list.
+
 ## Privacy
 
 Tasks are stored in the session's own plugin state on your machine. The plugin makes no network calls and sends nothing to any outside service.

@@ -78,8 +78,8 @@ const age = (ms: number) => {
   const m = Math.max(0, Math.round(ms / 60000))
   if (m < 1) return 'now'
   if (m < 60) return `${m}m`
-  const h = Math.round(m / 60)
-  return h < 24 ? `${h}h` : `${Math.round(h / 24)}d`
+  const hours = Math.round(m / 60)
+  return hours < 24 ? `${hours}h` : `${Math.round(hours / 24)}d`
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')

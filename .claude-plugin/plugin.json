@@ -1,6 +1,6 @@
 {
   "name": "drive-by",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Never lose an ask in a long session. Every message you send becomes a drive-by task in a side pane; the agent closes each one only with proof, or drops it with a reason, and is reminded at turn end until none are left.",
   "author": { "name": "Noor Elshin", "email": "noor.elshin@gmail.com" },
   "homepage": "https://github.com/ElshinQ/drive-by",
