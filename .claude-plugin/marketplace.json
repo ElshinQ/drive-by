@@ -1,0 +1,16 @@
+{
+  "name": "drive-by",
+  "owner": {
+    "name": "Noor Elshin",
+    "email": "noor@maykana.ly"
+  },
+  "metadata": {
+    "description": "Drive-by: never lose an ask in a long Claude Code session."
+  },
+  "plugins": [
+    {
+      "name": "drive-by",
+      "source": "./"
+    }
+  ]
+}

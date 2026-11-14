@@ -1,0 +1,26 @@
+{
+  "name": "drive-by",
+  "version": "1.1.0",
+  "description": "Never lose an ask in a long session. Every message you send becomes a drive-by task in a side pane; the agent closes each one only with proof, or drops it with a reason, and is reminded at turn end until none are left.",
+  "author": { "name": "Noor Elshin", "email": "noor@maykana.ly" },
+  "homepage": "https://github.com/ElshinQ/drive-by",
+  "repository": "https://github.com/ElshinQ/drive-by",
+  "license": "MIT",
+  "keywords": ["tasks", "feedback", "long-sessions", "orchestration", "pane", "productivity"],
+  "icon": "./.claude-plugin/icon.png",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "remindAtTurnEnd": {
+      "type": "boolean",
+      "title": "Remind at turn end",
+      "description": "When a turn ends with open drive-by tasks, send the agent one reminder that lists them.",
+      "default": true
+    },
+    "skipShortReplies": {
+      "type": "boolean",
+      "title": "Skip short replies",
+      "description": "Do not log short acknowledgements such as \"ok\", \"thanks\" or \"go ahead\" as tasks.",
+      "default": true
+    }
+  }
+}
