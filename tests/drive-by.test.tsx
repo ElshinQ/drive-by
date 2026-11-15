@@ -35,6 +35,8 @@ function engine(on: any, sent: string[]) {
     return { text: e.text, context: e.context }
   })
   on('turn.complete', () => ({ text: 'ok' }))
+  on('turn.start', (_: unknown, e: { turnId: string }) => ({ turnId: e.turnId }))
+  on('tool.call', () => ({ result: 'ok' }))
 }
 
 test('a message becomes an open item and closes only with proof', async ($, on) => {
@@ -145,4 +147,22 @@ test('no reminder when remindAtTurnEnd is off', { options: { remindAtTurnEnd: fa
   await $.turn.complete({ reason: 'answer', answer: 'done', durationMs: 1, isAborted: false, turnId: 't1' })
 
   expect(sent.filter(t => t.includes('open drive-by task')).length).toBe(0)
+})
+
+test('no reminder after a turn that ends on a question; it comes after the reply', async ($, on) => {
+  const sent: string[] = []
+  engine(on, sent)
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: 'Check the backup job', origin: USER, wait: false })
+
+  await $.turn.start({ text: 'Check the backup job', turnId: 't1' } as any)
+  await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'r', ask: 'Seed it?', actions: [{ label: 'Yes' }] } as any)
+  const end = { reason: 'answer', answer: 'done', durationMs: 1, isAborted: false } as const
+  await $.turn.complete({ ...end, turnId: 't1' })
+  expect(sent.filter(t => t.includes('open drive-by task')).length).toBe(0)
+
+  await $.turn.start({ text: '', turnId: 't2' } as any)
+  await $.tool.call({ tool: 'mcp__ccd_turn__wrap_up', recap: 'r' } as any)
+  await $.turn.complete({ ...end, turnId: 't2' })
+  expect(sent.filter(t => t.includes('open drive-by task')).length).toBe(1)
 })

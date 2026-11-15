@@ -16,6 +16,7 @@ declare module 'claude-code' {
       items: Shaped<Item[]>
       nudged: string | null
       showClosed: boolean
+      asked: boolean
     }
   }
 }

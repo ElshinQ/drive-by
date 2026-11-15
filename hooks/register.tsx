@@ -15,6 +15,19 @@ const items = atom({ plugin: 'drive-by', key: 'items' } as const, [], {
 // The open set the agent was last reminded about, so one set is nudged once.
 const nudged = atom({ plugin: 'drive-by', key: 'nudged' } as const, null)
 const showClosed = atom({ plugin: 'drive-by', key: 'showClosed' } as const, false)
+// True when the main loop's current turn put a question to the person (an
+// AskUserQuestion, or a wrap-up with an ask or option buttons). The turn-end
+// reminder then waits, so it does not bury the question.
+const asked = atom({ plugin: 'drive-by', key: 'asked' } as const, false)
+
+// Tools whose call means the turn ends on a question for the person.
+const ASKS = /^(AskUserQuestion|mcp__ccd_turn__wrap_up)$/
+const isQuestion = (e: Record<string, unknown>) => {
+  if (e.tool === 'AskUserQuestion') return true
+  const ask = typeof e.ask === 'string' && e.ask.trim() !== ''
+  const actions = Array.isArray(e.actions) && e.actions.length > 0
+  return ask || actions
+}
 
 // Messages a person typed: the terminal, the desktop app (sdk), the phone bridge.
 const PERSON = new Set(['composer', 'sdk', 'bridge', 'unclassified'])
@@ -198,6 +211,19 @@ export const register: Register = (on, options) => {
       : { result: `No task ${id}.`, isError: true }
   }).catch(() => ({ result: 'drive-by: the tool failed.', isError: true as const }))
 
+  // A new main-loop turn starts with no question asked.
+  on('turn.start', async ($, e, next) => {
+    if ((e as { agentId?: string }).agentId === undefined) await update($, asked, () => false)
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  // Watch, never change, the calls that end a turn on a question.
+  on('tool.call', { tool: ASKS }, async ($, e, next) => {
+    const input = e as Record<string, unknown>
+    if (input.agentId === undefined && isQuestion(input)) await update($, asked, () => true)
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
   // Turn-end guard: open items get one reminder per unchanged open set.
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
@@ -206,6 +232,9 @@ export const register: Register = (on, options) => {
     const open = openOf(await read($, items))
     $.ui.status(open.length > 0 ? `drive-by: ${open.length} open` : undefined)
     if (open.length === 0 || !remindAtTurnEnd) return done
+    // The turn ended on a question: let the person answer first. The set is
+    // not marked as nudged, so the reminder comes after their reply.
+    if (await read($, asked)) return done
 
     const key = open.map(one => one.id).join(',')
     if ((await read($, nudged)) === key) return done
