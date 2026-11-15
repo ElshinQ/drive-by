@@ -57,6 +57,33 @@ const listText = (list: readonly Item[]) => {
   ].join('\n')
 }
 
+// The session atom is what the pane draws; $.store keeps the list across sessions and app
+// restarts (1.3.0: a restart used to wipe every task). Every write mirrors the list there.
+const STORE_KEY = 'items-v1'
+
+async function persist($: EngineInterface) {
+  try {
+    await $.store.set(STORE_KEY, await read($, items))
+  } catch {
+    // A full or failing store must never block logging an ask.
+  }
+}
+
+const isItemList = (v: unknown): v is Item[] =>
+  Array.isArray(v) && v.every(one => one && typeof one === 'object' && typeof (one as Item).id === 'string'
+    && typeof (one as Item).text === 'string' && typeof (one as Item).status === 'string')
+
+// At session start an empty list is filled from the store; a list the session already holds wins.
+async function restore($: EngineInterface) {
+  const current = await read($, items)
+  if (current.length > 0) {
+    await persist($)
+    return
+  }
+  const saved = await $.store.get(STORE_KEY).catch(() => undefined)
+  if (isItemList(saved) && saved.length > 0) await update($, items, () => saved)
+}
+
 async function add($: EngineInterface, text: string, source: Item['source']) {
   const createdAt = await $.clock.now()
   let made: Item | undefined
@@ -64,6 +91,7 @@ async function add($: EngineInterface, text: string, source: Item['source']) {
     made = { id: nextId(list), text: clip(text.trim(), MAX_TEXT), status: 'open', source, createdAt }
     return [...list, made]
   })
+  await persist($)
   return made as Item
 }
 
@@ -84,6 +112,7 @@ async function close(
         : { ...one, status, closedAt, note }
     }),
   )
+  if (found) await persist($)
   return found
 }
 
@@ -102,6 +131,7 @@ export const register: Register = (on, options) => {
   const skipShortReplies = options.skipShortReplies !== false
 
   on('session.start', async ($, e, next) => {
+    await restore($)
     await $.command.register({
       name: 'drive-by',
       description: 'Open the drive-by tasks pane',

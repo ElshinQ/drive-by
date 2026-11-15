@@ -166,3 +166,41 @@ test('no reminder after a turn that ends on a question; it comes after the reply
   await $.turn.complete({ ...end, turnId: 't2' })
   expect(sent.filter(t => t.includes('open drive-by task')).length).toBe(1)
 })
+
+function storeHooks(on: any, stored: Map<string, unknown>) {
+  on('store.get', (_: unknown, e: { key: string }) => ({ value: stored.get(e.key) }))
+  on('store.set', (_: unknown, e: { key: string; value: unknown }) => {
+    stored.set(e.key, JSON.parse(JSON.stringify(e.value)))
+    return { value: undefined }
+  })
+}
+
+test('every change to the task list is mirrored to the store', async ($, on) => {
+  const sent: string[] = []
+  engine(on, sent)
+  const stored = new Map<string, unknown>()
+  storeHooks(on, stored)
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: 'Keep me after a restart', origin: USER, wait: false })
+  await $.tool.call({ tool: 'mcp__drive-by__add', text: 'And me' } as any)
+  await $.tool.call({ tool: 'mcp__drive-by__close', id: 'D-2', proof: 'x.ts:1' } as any)
+  const saved = stored.get('items-v1') as any[]
+  expect(saved.length).toBe(2)
+  expect(saved[1].status).toBe('done')
+})
+
+test('a new session reloads the task list from the store', async ($, on) => {
+  const sent: string[] = []
+  engine(on, sent)
+  const stored = new Map<string, unknown>([['items-v1', [
+    { id: 'D-1', text: 'Kept across a restart', status: 'open', source: 'auto', createdAt: 1 },
+    { id: 'D-2', text: 'Closed earlier', status: 'done', source: 'agent', createdAt: 2, closedAt: 3, note: 'p' },
+  ]]])
+  storeHooks(on, stored)
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const list = await $.tool.call({ tool: 'mcp__drive-by__list' } as any)
+  expect(String(list.result)).toBe('1 open drive-by task(s):\n- D-1: Kept across a restart')
+  await $.prompt.submit({ text: 'A new ask after the restart', origin: USER, wait: false })
+  const again = await $.tool.call({ tool: 'mcp__drive-by__list' } as any)
+  expect(String(again.result)).toContain('D-3: A new ask after the restart')
+})

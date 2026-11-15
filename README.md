@@ -19,6 +19,7 @@ The agent's own task list does not fix this. That list is the agent's plan. Driv
 | Auto-capture | Each message you type becomes a task (`D-1`, `D-2`, ...). The agent gets a short hidden note with the id. Slash commands and plugin prompts are skipped. Short replies such as "ok" or "thanks" are skipped by default. |
 | Agent tools | `list`, `add`, `close`, `drop`. `close` needs proof (a file and line, a commit, a test run). `drop` needs a reason ("answered in chat", "duplicate of D-2"). The agent can split one message into several tasks with `add`. |
 | Side pane | Open tasks as cards, with Done and Drop buttons for you. Closed tasks keep their proof and can be reopened. In the desktop app, an animated 2-bit pixel scene shows the load: a car drives while tasks are open and parks at a flag when all are clear. It stops for reduced motion. The terminal shows a row of squares instead. |
+| Survives restarts | The task list is kept in the plugin store as well as the session, so quitting the app or starting a new session keeps every task and its numbering. |
 | Turn-end reminder | When a turn ends with open tasks, the agent gets one reminder that lists them. The same open set is never reminded twice, so it cannot loop. A turn that ends on a question to you (`AskUserQuestion`, or a wrap-up with a question or option buttons) gets no reminder, so your choice stays on screen; the reminder comes after your reply. |
 | Status line | `drive-by: N open` |
 
