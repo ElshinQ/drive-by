@@ -17,6 +17,7 @@ declare module 'claude-code' {
       reminded: string[]
       showClosed: boolean
       asked: boolean
+      live: boolean
     }
   }
 }

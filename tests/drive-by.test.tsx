@@ -200,6 +200,22 @@ function storeHooks(on: any, stored: Map<string, unknown>) {
   })
 }
 
+test('a non-interactive session (claude -p) logs nothing and never touches the saved list', async ($, on) => {
+  const sent: string[] = []
+  engine(on, sent)
+  const stored = new Map<string, unknown>([['items-v1', [{ id: 'D-1', text: 'Noor ask', status: 'open', source: 'auto', createdAt: 1 }]]])
+  storeHooks(on, stored)
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: false })
+  await $.prompt.submit({ text: 'Grade the lane', origin: USER, wait: false })
+  await $.turn.complete({ reason: 'answer', answer: 'done', durationMs: 1, isAborted: false, turnId: 't1' })
+
+  const list = await $.tool.call({ tool: 'mcp__drive-by__list' } as any)
+  expect(String(list.result)).toBe('No open drive-by tasks.')
+  expect(sent.filter(t => t.includes('open drive-by task')).length).toBe(0)
+  expect((stored.get('items-v1') as any[]).length).toBe(1)
+})
+
+
 test('every change to the task list is mirrored to the store', async ($, on) => {
   const sent: string[] = []
   engine(on, sent)

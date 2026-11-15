@@ -20,6 +20,9 @@ const showClosed = atom({ plugin: 'drive-by', key: 'showClosed' } as const, fals
 // AskUserQuestion, or a wrap-up with an ask or option buttons). The turn-end
 // reminder then waits, so it does not bury the question.
 const asked = atom({ plugin: 'drive-by', key: 'asked' } as const, false)
+// False in a non-interactive session (claude -p: graders, builders, scripts). Such a
+// session must not log its prompt, read or write the person's saved list, or nudge (1.3.2).
+const live = atom({ plugin: 'drive-by', key: 'live' } as const, true)
 
 // Tools whose call means the turn ends on a question for the person.
 const ASKS = /^(AskUserQuestion|mcp__ccd_turn__wrap_up)$/
@@ -63,6 +66,7 @@ const listText = (list: readonly Item[]) => {
 const STORE_KEY = 'items-v1'
 
 async function persist($: EngineInterface) {
+  if (!(await read($, live))) return
   try {
     await $.store.set(STORE_KEY, await read($, items))
   } catch {
@@ -132,7 +136,8 @@ export const register: Register = (on, options) => {
   const skipShortReplies = options.skipShortReplies !== false
 
   on('session.start', async ($, e, next) => {
-    await restore($)
+    await update($, live, () => e.isInteractive !== false)
+    if (await read($, live)) await restore($)
     await $.command.register({
       name: 'drive-by',
       description: 'Open the drive-by tasks pane',
@@ -196,7 +201,7 @@ export const register: Register = (on, options) => {
   on('prompt.submit', async ($, e, next) => {
     const text = e.text.trim()
     const isSkipped = skipShortReplies && isAck(text)
-    if (e.command || e.isMeta || !PERSON.has(e.origin.kind) || text === '' || isSkipped) {
+    if (e.command || e.isMeta || !PERSON.has(e.origin.kind) || text === '' || isSkipped || !(await read($, live))) {
       return next(e)
     }
     const item = await add($, text, 'auto')
@@ -258,7 +263,7 @@ export const register: Register = (on, options) => {
   // Turn-end guard: each open item gets one reminder, not one per change to the set.
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
-    if (e.agentId !== undefined || e.reason !== 'answer') return done
+    if (e.agentId !== undefined || e.reason !== 'answer' || !(await read($, live))) return done
 
     const open = openOf(await read($, items))
     $.ui.status(open.length > 0 ? `drive-by: ${open.length} open` : undefined)
