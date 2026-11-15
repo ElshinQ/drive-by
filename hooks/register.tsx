@@ -12,8 +12,9 @@ const TOOL = 'mcp__drive-by__'
 const items = atom({ plugin: 'drive-by', key: 'items' } as const, [], {
   shape: 'items-1',
 })
-// The open set the agent was last reminded about, so one set is nudged once.
-const nudged = atom({ plugin: 'drive-by', key: 'nudged' } as const, null)
+// Ids the agent was already reminded about (1.3.1). Each item is nudged once: closing
+// one item no longer makes a "new" open set that re-sends the items still waiting.
+const reminded = atom({ plugin: 'drive-by', key: 'reminded' } as const, [] as string[])
 const showClosed = atom({ plugin: 'drive-by', key: 'showClosed' } as const, false)
 // True when the main loop's current turn put a question to the person (an
 // AskUserQuestion, or a wrap-up with an ask or option buttons). The turn-end
@@ -254,7 +255,7 @@ export const register: Register = (on, options) => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  // Turn-end guard: open items get one reminder per unchanged open set.
+  // Turn-end guard: each open item gets one reminder, not one per change to the set.
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
     if (e.agentId !== undefined || e.reason !== 'answer') return done
@@ -266,13 +267,16 @@ export const register: Register = (on, options) => {
     // not marked as nudged, so the reminder comes after their reply.
     if (await read($, asked)) return done
 
-    const key = open.map(one => one.id).join(',')
-    if ((await read($, nudged)) === key) return done
-    await update($, nudged, () => key)
+    const seen = new Set(await read($, reminded))
+    const fresh = open.filter(one => !seen.has(one.id))
+    if (fresh.length === 0) return done
+    await update($, reminded, list => [...list, ...fresh.map(one => one.id)])
+    const waiting = open.length - fresh.length
 
     void $.prompt.submit({
       text:
-        `${listText(open)}\n\n` +
+        `${listText(fresh).replace('open drive-by task(s)', 'new open drive-by task(s)')}\n\n` +
+        (waiting > 0 ? `(${waiting} earlier item(s) still open; you already addressed them.)\n\n` : '') +
         `For each one: do it and call ${TOOL}close with proof, call ${TOOL}drop with a reason, ` +
         `or say in one line why it must wait. Do not end the turn with an item you did not address.`,
     })

@@ -14,7 +14,7 @@ declare module 'claude-code' {
   interface PluginState {
     'drive-by': {
       items: Shaped<Item[]>
-      nudged: string | null
+      reminded: string[]
       showClosed: boolean
       asked: boolean
     }

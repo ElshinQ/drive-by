@@ -72,6 +72,31 @@ test('the turn-end guard nudges once per unchanged open set', async ($, on) => {
   expect(nudges[0]).toContain('D-1')
 })
 
+test('closing one item does not re-send the items still waiting; a new ask is sent alone', async ($, on) => {
+  const sent: string[] = []
+  engine(on, sent)
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: 'Check the backup job', origin: USER, wait: false })
+  await $.prompt.submit({ text: 'Rename the button', origin: USER, wait: false })
+  const end = { reason: 'answer', answer: 'done', durationMs: 1, isAborted: false } as const
+  const nudges = () => sent.filter(t => t.includes('open drive-by task'))
+
+  await $.turn.complete({ ...end, turnId: 't1' })
+  expect(nudges().length).toBe(1)
+
+  await $.tool.call({ tool: 'mcp__drive-by__close', id: 'D-2', proof: 'renamed' } as any)
+  await $.turn.complete({ ...end, turnId: 't2' })
+  await $.turn.complete({ ...end, turnId: 't3' })
+  expect(nudges().length).toBe(1)
+
+  await $.prompt.submit({ text: 'Also update the docs', origin: USER, wait: false })
+  await $.turn.complete({ ...end, turnId: 't4' })
+  expect(nudges().length).toBe(2)
+  expect(nudges()[1]).toContain('D-3')
+  expect(nudges()[1].includes('- D-1')).toBe(false)
+  expect(nudges()[1]).toContain('1 earlier item(s) still open')
+})
+
 test('the pane draws the scene, the count and a card, and Done closes it', async ($, on) => {
   const sent: string[] = []
   engine(on, sent)
